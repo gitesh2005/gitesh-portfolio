@@ -1,10 +1,11 @@
-# [Project name]
+# Professional Developer Portfolio
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A polished, responsive single-page portfolio for an early-career Computer Science Engineer.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/developer-portfolio run dev` — run the portfolio preview
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -22,23 +23,29 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/developer-portfolio/src/App.tsx` — page structure, interactions, navigation, theme toggle, and contact form
+- `artifacts/developer-portfolio/src/data/portfolio.ts` — single editable source of truth for portfolio content and links
+- `artifacts/developer-portfolio/src/index.css` — theme tokens, typography, layout utilities, and motion/accessibility styles
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The portfolio is frontend-only; the contact form validates and prepares a message but does not claim to send email.
+- Personal content is centralized in `src/data/portfolio.ts` so replacement does not require searching component files.
+- Empty external URLs intentionally render as instructions instead of dead links or invented profiles.
+- Light/dark theme selection is persisted in local storage and respects the system preference on first load.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Recruiters can scan the hero, about, skills, projects, education, experience, profiles, and contact information from one responsive page. The layout supports keyboard navigation, mobile navigation, accessible focus states, reduced motion, metadata, and placeholder-safe personalization.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+The portfolio should stay professional, recruiter-friendly, readable, and honest about placeholder information.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Replace identity, education, experience, certification, achievement, project URLs, coding profile URLs, and resume URL in `src/data/portfolio.ts` before publishing.
+- Keep contact integrations explicit; the current form is intentionally not connected to an email service.
 
 ## Pointers
 
