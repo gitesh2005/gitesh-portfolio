@@ -18,6 +18,7 @@ import {
   GraduationCap,
   Layers3,
   Linkedin,
+  Loader2,
   Mail,
   MapPin,
   Menu,
@@ -29,6 +30,8 @@ import {
   X,
 } from 'lucide-react';
 import { portfolio, type PortfolioProject } from '@/data/portfolio';
+
+const WEB3FORMS_ACCESS_KEY = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
 
 const navItems = [
   { label: 'Home', href: '#top' },
@@ -72,12 +75,75 @@ function IconLink({ href, label, children }: { href: string; label: string; chil
   );
 }
 
+type TerminalLine = { text: string; output: string };
+type TerminalScene = { label: string; lines: TerminalLine[] };
+
 function TerminalCard() {
-  const lines = [
-    { prompt: '$', text: 'whoami', output: `${portfolio.identity.shortName.toLowerCase()}@builder` },
-    { prompt: '$', text: 'cat focus.txt', output: 'useful software, always learning' },
-    { prompt: '$', text: 'git status', output: 'learning in progress' },
-  ];
+  const prefersReducedMotion = useReducedMotion();
+
+  const scenes = useMemo<TerminalScene[]>(() => [
+    {
+      label: 'engineer',
+      lines: [
+        { text: 'whoami', output: portfolio.identity.email },
+        { text: 'cat focus.txt', output: 'useful software, always learning' },
+        { text: 'git status', output: 'learning in progress' },
+      ],
+    },
+    {
+      label: 'stack',
+      lines: [
+        { text: 'cat stack.txt', output: 'java · spring boot · react · python' },
+        { text: 'ls projects/', output: 'expense-tracker  calories  payroll' },
+        { text: 'git log -1', output: 'shipped: AI expense tracker' },
+      ],
+    },
+    {
+      label: 'status',
+      lines: [
+        { text: 'cat status.txt', output: 'open to junior SWE roles & internships' },
+        { text: 'npm run learn', output: 'still running, no exit code' },
+        { text: 'echo $NEXT', output: 'the next useful thing' },
+      ],
+    },
+  ], []);
+
+  // Start on a random scene every page load, then keep rotating.
+  const [sceneIndex, setSceneIndex] = useState(() => Math.floor(Math.random() * 3));
+  const [lineIndex, setLineIndex] = useState(0);
+  const [chars, setChars] = useState(0);
+  const [showOutput, setShowOutput] = useState(false);
+
+  const scene = scenes[sceneIndex % scenes.length];
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const current = scene.lines[lineIndex];
+    let timer: number;
+    if (!current) {
+      // Scene finished: pause, then move to the next one.
+      timer = window.setTimeout(() => {
+        setSceneIndex((value) => (value + 1) % scenes.length);
+        setLineIndex(0);
+        setChars(0);
+        setShowOutput(false);
+      }, 3200);
+    } else if (chars < current.text.length) {
+      timer = window.setTimeout(() => setChars((value) => value + 1), 45);
+    } else if (!showOutput) {
+      timer = window.setTimeout(() => setShowOutput(true), 350);
+    } else {
+      timer = window.setTimeout(() => {
+        setLineIndex((value) => value + 1);
+        setChars(0);
+        setShowOutput(false);
+      }, 550);
+    }
+    return () => window.clearTimeout(timer);
+  }, [scene, scenes.length, lineIndex, chars, showOutput, prefersReducedMotion]);
+
+  const visibleLines = prefersReducedMotion ? scene.lines : scene.lines.slice(0, lineIndex + 1);
+
   return (
     <motion.div
       initial={{ opacity: 0, rotate: 2, y: 15 }}
@@ -97,20 +163,29 @@ function TerminalCard() {
           <span className="font-mono-custom text-[10px] text-muted-foreground">~/portfolio</span>
           <Terminal className="h-4 w-4 text-muted-foreground" />
         </div>
-        <div className="space-y-5 px-6 py-8 font-mono-custom text-xs leading-relaxed sm:px-8 sm:py-10 sm:text-sm">
+        <div className="px-6 py-8 font-mono-custom text-xs leading-relaxed sm:px-8 sm:py-10 sm:text-sm">
           <div className="mb-7 text-muted-foreground">
-            <span className="text-accent">const</span> engineer = {'{'}
+            <span className="text-accent">const</span> {scene.label} = {'{'}
           </div>
-          {lines.map((line) => (
-            <div key={line.text}>
-              <div className="text-foreground">
-                <span className="mr-2 text-primary">{line.prompt}</span>{line.text}
-              </div>
-              <div className="pl-4 text-muted-foreground">
-                <span className="mr-2 text-accent">→</span>{line.output}
-              </div>
-            </div>
-          ))}
+          <div className="min-h-[14.5rem] space-y-5">
+            {visibleLines.map((line, index) => {
+              const isDone = prefersReducedMotion || index < lineIndex;
+              const typed = isDone ? line.text : line.text.slice(0, chars);
+              const outputShown = isDone || (index === lineIndex && showOutput);
+              return (
+                <div key={`${scene.label}-${line.text}`}>
+                  <div className="text-foreground">
+                    <span className="mr-2 text-primary">$</span>{typed}
+                  </div>
+                  {outputShown && (
+                    <div className="pl-4 text-muted-foreground">
+                      <span className="mr-2 text-accent">→</span>{line.output}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
           <div className="mt-7 text-muted-foreground">
             {'}'} <span className="terminal-cursor ml-1 inline-block h-4 w-2 translate-y-1 bg-primary" />
           </div>
@@ -134,13 +209,19 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
         <span className={`rounded-full border px-3 py-1 font-mono-custom text-[10px] uppercase tracking-[0.13em] ${accent}`}>{project.category}</span>
         <span className="font-mono-custom text-xs text-muted-foreground">{project.number}</span>
       </div>
-      <div className="mb-8 flex min-h-28 items-center justify-between overflow-hidden rounded-xl border border-border bg-muted/50 px-5 py-4">
-        <div className="font-mono-custom text-[10px] uppercase tracking-[0.13em] text-muted-foreground">Project preview</div>
-        <div className="flex gap-1.5" aria-hidden="true">
-          <span className="h-2.5 w-2.5 rounded-full bg-primary/70" />
-          <span className="h-2.5 w-2.5 rounded-full bg-accent/70" />
-          <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/35" />
-        </div>
+      <div className="mb-8 flex min-h-28 items-center justify-between overflow-hidden rounded-xl border border-border bg-muted/50">
+        {project.image ? (
+          <img src={project.image} alt={`${project.title} preview`} className="h-48 w-full object-cover" />
+        ) : (
+          <>
+            <div className="px-5 py-4 font-mono-custom text-[10px] uppercase tracking-[0.13em] text-muted-foreground">view</div>
+            <div className="flex gap-1.5 pr-5" aria-hidden="true">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-accent/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/35" />
+            </div>
+          </>
+        )}
       </div>
       <h3 className="font-display text-4xl tracking-[-0.03em]">{project.title}</h3>
       <p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">{project.description}</p>
@@ -168,6 +249,7 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
+  const [sending, setSending] = useState(false);
   const [activeSection, setActiveSection] = useState('about');
   const [form, setForm] = useState({ name: '', email: '', message: '' });
 
@@ -211,8 +293,9 @@ function App() {
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (sending) return;
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
       setFormError('Please complete your name, email, and message before submitting.');
       return;
@@ -221,8 +304,38 @@ function App() {
       setFormError('Please enter a valid email address.');
       return;
     }
+    if (WEB3FORMS_ACCESS_KEY === 'PASTE_YOUR_ACCESS_KEY_HERE') {
+      setFormError('Contact form is not configured yet. Please email me directly.');
+      return;
+    }
+    const botcheck = new FormData(event.currentTarget).get('botcheck');
+    if (botcheck) return; // spam bot filled the hidden field
     setFormError('');
-    setSubmitted(true);
+    setSending(true);
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          access_key: WEB3FORMS_ACCESS_KEY,
+          subject: `New portfolio message from ${form.name.trim()}`,
+          from_name: 'Portfolio Contact Form',
+          name: form.name.trim(),
+          email: form.email.trim(),
+          message: form.message.trim(),
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setSubmitted(true);
+      } else {
+        setFormError('Something went wrong while sending. Please try again or email me directly.');
+      }
+    } catch {
+      setFormError('Network error. Please check your connection and try again, or email me directly.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -350,7 +463,32 @@ function App() {
                 </div>
               </div>
               <div className="space-y-12">
-                <div><div className="mb-7 flex items-center gap-3"><Award className="h-5 w-5 text-primary" /><h3 className="font-mono-custom text-xs uppercase tracking-[.17em] text-primary">Certifications</h3></div><div className="space-y-4">{portfolio.certifications.map((item) => <div key={item.title} className="flex items-start justify-between gap-5 border-b border-border pb-4"><div><h4 className="text-sm font-bold">{item.title}</h4><p className="mt-1 text-xs text-muted-foreground">{item.issuer}</p></div><span className="font-mono-custom text-[10px] text-muted-foreground">{item.year}</span></div>)}</div></div>
+                <div>
+                  <div className="mb-7 flex items-center gap-3"><Award className="h-5 w-5 text-primary" /><h3 className="font-mono-custom text-xs uppercase tracking-[.17em] text-primary">Certifications</h3></div>
+                  <div className="space-y-4">
+                    {portfolio.certifications.map((item) => (
+                      <div key={item.title} className="flex items-start justify-between gap-5 border-b border-border pb-4">
+                        <div>
+                          <h4 className="text-sm font-bold">
+                            {item.link && (
+                              <a
+                                href={item.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 transition-colors hover:text-primary"
+                                data-testid={`link-certificate-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                              >
+                                {item.title} <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </h4>
+                          <p className="mt-1 text-xs text-muted-foreground">{item.issuer}</p>
+                        </div>
+                        <span className="font-mono-custom text-[10px] text-muted-foreground">{item.year}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div><div className="mb-7 flex items-center gap-3"><CircleDot className="h-5 w-5 text-primary" /><h3 className="font-mono-custom text-xs uppercase tracking-[.17em] text-primary">A few wins</h3></div><ul className="space-y-4">{portfolio.achievements.map((item) => <li key={item} className="flex gap-3 text-sm leading-6 text-muted-foreground"><ChevronRight className="mt-1 h-4 w-4 shrink-0 text-accent" />{item}</li>)}</ul></div>
                 <div className="rounded-xl border border-primary/25 bg-primary/5 p-6"><p className="font-display text-2xl leading-snug">The through-line is simple: stay curious, then make the learning useful.</p></div>
               </div>
@@ -383,17 +521,18 @@ function App() {
                  <div className="mt-14 flex items-center gap-3 text-xs text-background/55"><MapPin className="h-4 w-4 text-primary" /> Based in {portfolio.identity.location} · available remotely</div>
               </div>
               <div>
-                <div className="mb-6 flex items-center justify-between border-b border-background/20 pb-4"><span className="font-mono-custom text-[10px] uppercase tracking-[.16em] text-background/50">Contact form</span><span className="flex items-center gap-2 font-mono-custom text-[10px] text-accent"><span className="h-1.5 w-1.5 rounded-full bg-accent" /> ready for integration</span></div>
-                {submitted ? <div className="flex min-h-[335px] flex-col items-start justify-center"><div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-accent/20 text-accent"><Check className="h-6 w-6" /></div><h3 className="font-display text-4xl">Message prepared.</h3><p className="mt-3 max-w-sm text-sm leading-7 text-background/60">The form is validated and ready to connect to your email provider or API. For now, reach me directly at {portfolio.identity.email}.</p><button type="button" onClick={() => { setSubmitted(false); setForm({ name: '', email: '', message: '' }); }} className="mt-7 text-sm font-bold text-primary hover:underline" data-testid="button-reset-contact">Send another</button></div> :
+                <div className="mb-6 flex items-center justify-between border-b border-background/20 pb-4"><span className="font-mono-custom text-[10px] uppercase tracking-[.16em] text-background/50">Contact form</span><span className="flex items-center gap-2 font-mono-custom text-[10px] text-accent"><span className="h-1.5 w-1.5 rounded-full bg-accent" /> replies within 48 hours</span></div>
+                {submitted ? <div className="flex min-h-[335px] flex-col items-start justify-center"><div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-accent/20 text-accent"><Check className="h-6 w-6" /></div><h3 className="font-display text-4xl">Message sent.</h3><p className="mt-3 max-w-sm text-sm leading-7 text-background/60">Thanks for reaching out. I will get back to you soon at the email you provided.</p><button type="button" onClick={() => { setSubmitted(false); setForm({ name: '', email: '', message: '' }); }} className="mt-7 text-sm font-bold text-primary hover:underline" data-testid="button-reset-contact">Send another</button></div> :
                   <form onSubmit={handleSubmit} className="space-y-7" noValidate>
                     <div className="grid gap-7 sm:grid-cols-2">
                       <label className="block"><span className="mb-2 block text-xs font-bold text-background/70">Your name</span><input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full border-b border-background/25 bg-transparent py-3 text-sm outline-none transition-colors placeholder:text-background/35 focus:border-primary" placeholder="Jane Smith" data-testid="input-contact-name" /></label>
                       <label className="block"><span className="mb-2 block text-xs font-bold text-background/70">Email address</span><input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="w-full border-b border-background/25 bg-transparent py-3 text-sm outline-none transition-colors placeholder:text-background/35 focus:border-primary" placeholder="jane@company.com" data-testid="input-contact-email" /></label>
                     </div>
                     <label className="block"><span className="mb-2 block text-xs font-bold text-background/70">What are you working on?</span><textarea required rows={4} value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} className="w-full resize-none border-b border-background/25 bg-transparent py-3 text-sm outline-none transition-colors placeholder:text-background/35 focus:border-primary" placeholder="Tell me a little about the role or problem..." data-testid="input-contact-message" /></label>
+                    <input type="checkbox" name="botcheck" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
                     {formError && <p role="alert" className="text-xs text-primary" data-testid="status-contact-error">{formError}</p>}
-                    <button type="submit" className="group inline-flex items-center gap-3 rounded-full bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground transition-transform hover:-translate-y-1" data-testid="button-submit-contact">Prepare message <Send className="h-4 w-4 transition-transform group-hover:translate-x-1" /></button>
-                    <p className="text-[11px] leading-5 text-background/40">This is a front-end contact form prepared for integration. It does not send email yet.</p>
+                    <button type="submit" disabled={sending} className="group inline-flex items-center gap-3 rounded-full bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground transition-transform hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0" data-testid="button-submit-contact">{sending ? 'Sending...' : 'Send message'} {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 transition-transform group-hover:translate-x-1" />}</button>
+                    <p className="text-[11px] leading-5 text-background/40">Your message goes straight to my inbox. Your email is used only to reply.</p>
                   </form>}
               </div>
             </div>
